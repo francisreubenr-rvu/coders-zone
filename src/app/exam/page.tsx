@@ -4,8 +4,8 @@ import { useEffect, useState } from "react";
 import { CodeEditor } from "@/components/code-editor";
 import { problems, getProblem, LANGUAGES, type Lang } from "@/lib/problems";
 
-const ADMIN_CODE = process.env.NEXT_PUBLIC_ADMIN_CODE || "admin123";
 const EXAM_KEY = "cz-exam";
+const SUBMISSION_KEY = "cz-exam-submission";
 
 type Exam = { title: string; slugs: string[]; createdAt: number };
 type QResult = { slug: string; passed: number; total: number };
@@ -42,7 +42,7 @@ export default function ExamPage() {
               className="cz-mono"
               style={{ fontSize: 12.5, padding: "9px 16px", textTransform: "capitalize", background: tab === t ? "var(--cz-btn-bg)" : "transparent", color: tab === t ? "var(--cz-btn-fg)" : "var(--cz-soft)", border: "none", cursor: "pointer" }}
             >
-              {t}
+              {t === "admin" ? "Author" : t}
             </button>
           ))}
         </div>
@@ -55,36 +55,9 @@ export default function ExamPage() {
 
 /* ─────────────── Admin ─────────────── */
 function AdminPanel({ exam, onPublish }: { exam: Exam | null; onPublish: (e: Exam | null) => void }) {
-  const [authed, setAuthed] = useState(false);
-  const [code, setCode] = useState("");
   const [title, setTitle] = useState(exam?.title || "Weekly Coding Test");
   const [slugs, setSlugs] = useState<string[]>(exam?.slugs || []);
   const [saved, setSaved] = useState(false);
-
-  if (!authed) {
-    return (
-      <div className="cz-card" style={{ padding: 24, maxWidth: 420 }}>
-        <p style={{ margin: "0 0 14px", fontSize: 14.5, lineHeight: 1.6, color: "var(--cz-soft)" }}>
-          Enter the admin code to post or edit the exam.
-        </p>
-        <form
-          onSubmit={(e) => { e.preventDefault(); if (code === ADMIN_CODE) setAuthed(true); }}
-          style={{ display: "flex", gap: 10 }}
-        >
-          <input
-            type="password"
-            value={code}
-            onChange={(e) => setCode(e.target.value)}
-            placeholder="admin code"
-            className="cz-mono"
-            style={{ flex: 1, fontSize: 14, padding: "11px 13px", borderRadius: 8, border: "1px solid var(--cz-line)", background: "var(--cz-bg)", color: "var(--cz-fg)" }}
-          />
-          <button className="cz-btn" style={{ fontSize: 14 }} type="submit">Enter</button>
-        </form>
-        {code && code !== ADMIN_CODE && <p style={{ margin: "10px 0 0", fontSize: 12.5, color: "var(--cz-red)" }}>Wrong code.</p>}
-      </div>
-    );
-  }
 
   function toggle(slug: string) {
     setSlugs((s) => (s.includes(slug) ? s.filter((x) => x !== slug) : [...s, slug]));
@@ -99,6 +72,7 @@ function AdminPanel({ exam, onPublish }: { exam: Exam | null; onPublish: (e: Exa
   }
 
   function clearExam() {
+    if (!confirm("Unpublish this exam? Students will lose access to it immediately.")) return;
     localStorage.removeItem(EXAM_KEY);
     onPublish(null);
     setSlugs([]);
@@ -167,15 +141,36 @@ function StudentPanel({ exam }: { exam: Exam | null }) {
     questions.forEach((q) => { l[q.slug] = "python"; c[q.slug] = q.starter.python; });
     setLang(l);
     setCode(c);
+
+    // rehydrate a previously graded submission for this exact exam, if one exists
+    try {
+      const raw = localStorage.getItem(SUBMISSION_KEY);
+      const sub = raw ? (JSON.parse(raw) as { examTitle: string; examCreatedAt?: number; results: QResult[] }) : null;
+      if (sub && sub.examTitle === exam.title && sub.examCreatedAt === exam.createdAt) {
+        setResults(sub.results);
+        return;
+      }
+    } catch {}
     setResults(null);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [exam]);
+
+  useEffect(() => {
+    // warn before an in-progress, unsubmitted attempt is lost to a reload/close
+    if (!exam || questions.length === 0 || results) return;
+    function handler(e: BeforeUnloadEvent) {
+      e.preventDefault();
+      e.returnValue = "";
+    }
+    window.addEventListener("beforeunload", handler);
+    return () => window.removeEventListener("beforeunload", handler);
+  }, [exam, questions.length, results]);
 
   if (!exam || questions.length === 0) {
     return (
       <div className="cz-card" style={{ padding: 24, maxWidth: 520 }}>
         <p style={{ margin: 0, fontSize: 15, lineHeight: 1.6, color: "var(--cz-soft)" }}>
-          No exam has been posted yet. Check back when your instructor publishes one — or switch to the <strong>Admin</strong> tab to post one yourself.
+          No exam has been posted yet. Check back when your instructor publishes one — or switch to the <strong>Author</strong> tab to post one yourself.
         </p>
       </div>
     );
@@ -208,7 +203,7 @@ function StudentPanel({ exam }: { exam: Exam | null }) {
     setResults(out);
     setSubmitting(false);
     try {
-      localStorage.setItem("cz-exam-submission", JSON.stringify({ examTitle: exam!.title, results: out, at: Date.now() }));
+      localStorage.setItem(SUBMISSION_KEY, JSON.stringify({ examTitle: exam!.title, examCreatedAt: exam!.createdAt, results: out, at: Date.now() }));
     } catch {}
   }
 

@@ -17,6 +17,7 @@ const LINKS = [
 export function Nav() {
   const { user, enabled, signOut } = useAuth();
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [mobileOpen, setMobileOpen] = useState(false);
 
   return (
     <nav
@@ -59,12 +60,50 @@ export function Nav() {
               {enabled ? "Sign in with college email" : "Sign in"}
             </button>
           )}
+          <button
+            type="button"
+            className="cz-nav-toggle"
+            aria-label={mobileOpen ? "Close menu" : "Open menu"}
+            aria-expanded={mobileOpen}
+            onClick={() => setMobileOpen((v) => !v)}
+            style={{
+              display: "none", width: 34, height: 34, alignItems: "center", justifyContent: "center",
+              border: "var(--cz-ghost-border)", borderRadius: "var(--cz-btn-radius)", background: "transparent",
+              color: "var(--cz-fg)", fontSize: 15, lineHeight: 1, cursor: "pointer", flexShrink: 0,
+            }}
+          >
+            {mobileOpen ? "✕" : "☰"}
+          </button>
         </div>
       </div>
 
+      {mobileOpen && (
+        <div className="cz-nav-mobile-panel" style={{ display: "none" }}>
+          <div className="cz-container" style={{ display: "flex", flexDirection: "column", paddingBottom: 14, borderTop: "1px solid var(--cz-line)" }}>
+            {LINKS.map((l, i) => (
+              <Link
+                key={l.label}
+                href={l.href}
+                onClick={() => setMobileOpen(false)}
+                style={{
+                  padding: "12px 2px", fontSize: 14, fontWeight: 500, color: "var(--cz-soft)",
+                  borderBottom: i < LINKS.length - 1 ? "1px solid var(--cz-line)" : "none",
+                }}
+              >
+                {l.label}
+              </Link>
+            ))}
+          </div>
+        </div>
+      )}
+
       {dialogOpen && <SignInDialog onClose={() => setDialogOpen(false)} />}
 
-      <style>{`@media (max-width: 760px){ .cz-nav-links{ display:none !important; } }`}</style>
+      <style>{`@media (max-width: 760px){
+        .cz-nav-links{ display:none !important; }
+        .cz-nav-toggle{ display:inline-flex !important; }
+        .cz-nav-mobile-panel{ display:block !important; }
+      }`}</style>
     </nav>
   );
 }

@@ -57,12 +57,25 @@ export async function runCode(lang: Lang, source: string, stdin: string): Promis
     const d = await detRes.json();
 
     const buildFailed = d.build_exit_code != null && String(d.build_exit_code) !== "0";
-    const compileError = buildFailed ? String(d.build_stderr || d.build_stdout || "Compilation failed") : undefined;
+    let compileError = buildFailed ? String(d.build_stderr || d.build_stdout || "Compilation failed") : undefined;
+
+    const stdout = String(d.stdout ?? "");
+    const stderr = String(d.stderr ?? "");
+    const runFailed = !buildFailed && String(d.exit_code ?? "0") !== "0";
+
+    // Interpreted languages (Python, etc.) have no build step, so a syntax error or
+    // uncaught exception only shows up here as a non-zero exit code + stderr traceback.
+    // Treat that the same as a compile error for UI purposes — but only when stdout is
+    // empty, since non-empty stdout means the program ran partway and some tests may
+    // still be worth showing (stderr is surfaced per-test in that case instead).
+    if (!compileError && runFailed && stdout.trim() === "" && stderr.trim() !== "") {
+      compileError = stderr;
+    }
 
     return {
-      ok: !compileError && String(d.exit_code ?? "0") === "0" && d.result !== "failure",
-      stdout: String(d.stdout ?? ""),
-      stderr: String(d.stderr ?? ""),
+      ok: !compileError && !runFailed && d.result !== "failure",
+      stdout,
+      stderr,
       compileError,
     };
   } catch (e) {

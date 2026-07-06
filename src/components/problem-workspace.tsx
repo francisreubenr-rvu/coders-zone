@@ -5,6 +5,7 @@ import { CodeEditor } from "@/components/code-editor";
 import { useAuth } from "@/components/auth";
 import { getSupabase } from "@/lib/supabase";
 import { LANGUAGES, type Lang, type Problem, type Explanation } from "@/lib/problems";
+import { classifyDiff } from "@/lib/diff";
 
 type JudgeResult = {
   total: number;
@@ -29,10 +30,13 @@ export function ProblemWorkspace({ problem }: { problem: Problem }) {
   const [attempted, setAttempted] = useState(false);
   const [revealed, setRevealed] = useState(false);
   const [solLang, setSolLang] = useState<Lang>("python");
+  const [compareOn, setCompareOn] = useState(false);
+  const [compareLang, setCompareLang] = useState<Lang>("c");
   const [explain, setExplain] = useState<(Explanation & { source: string }) | null>(null);
   const [explainLoading, setExplainLoading] = useState(false);
 
   const setLangCode = (v: string) => setCode((c) => ({ ...c, [lang]: v }));
+  const defaultCompareLang = (l: Lang): Lang => (l === "python" ? "c" : "python");
   const visibleTests = useMemo(() => problem.tests.filter((t) => !t.hidden), [problem.tests]);
 
   async function run() {
@@ -90,6 +94,7 @@ export function ProblemWorkspace({ problem }: { problem: Problem }) {
   async function reveal() {
     setRevealed(true);
     setSolLang(lang);
+    setCompareLang(defaultCompareLang(lang));
     if (explain || explainLoading) return;
     setExplainLoading(true);
     try {
@@ -163,21 +168,55 @@ export function ProblemWorkspace({ problem }: { problem: Problem }) {
 
           {revealed && (
             <div style={{ marginTop: 16 }}>
-              <div style={{ display: "flex", borderBottom: "1px solid var(--cz-panel-line)", marginBottom: 12, overflowX: "auto" }}>
-                {LANGUAGES.map((l) => (
-                  <button
-                    key={l.key}
-                    onClick={() => setSolLang(l.key)}
-                    className="cz-mono"
-                    style={{ fontSize: 12, padding: "8px 13px", background: "transparent", border: "none", cursor: "pointer", whiteSpace: "nowrap", color: solLang === l.key ? "var(--cz-fg)" : "var(--cz-faint)", borderBottom: solLang === l.key ? "2px solid var(--cz-accent)" : "2px solid transparent" }}
-                  >
-                    {l.label}
-                  </button>
-                ))}
+              <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 8 }}>
+                <button
+                  onClick={() => setCompareOn((v) => !v)}
+                  className="cz-mono"
+                  style={{ fontSize: 11, padding: "5px 11px", borderRadius: 6, border: "1px solid var(--cz-line)", cursor: "pointer", background: compareOn ? "var(--cz-accent)" : "transparent", color: compareOn ? "var(--cz-bg)" : "var(--cz-faint)" }}
+                >
+                  {compareOn ? "✓ Compare" : "Compare"}
+                </button>
               </div>
-              <pre className="cz-mono" style={{ margin: 0, padding: 14, fontSize: 12.5, lineHeight: 1.7, background: "var(--cz-bg)", borderRadius: 8, border: "1px solid var(--cz-line)", overflowX: "auto", color: "var(--cz-syn-plain)" }}>
-                {problem.solution[solLang]}
-              </pre>
+
+              <div style={{ display: "grid", gridTemplateColumns: compareOn ? "repeat(auto-fit,minmax(min(240px,100%),1fr))" : "1fr", gap: 16 }}>
+                <div>
+                  <div style={{ display: "flex", borderBottom: "1px solid var(--cz-panel-line)", marginBottom: 12, overflowX: "auto" }}>
+                    {LANGUAGES.map((l) => (
+                      <button
+                        key={l.key}
+                        onClick={() => setSolLang(l.key)}
+                        className="cz-mono"
+                        style={{ fontSize: 12, padding: "8px 13px", background: "transparent", border: "none", cursor: "pointer", whiteSpace: "nowrap", color: solLang === l.key ? "var(--cz-fg)" : "var(--cz-faint)", borderBottom: solLang === l.key ? "2px solid var(--cz-accent)" : "2px solid transparent" }}
+                      >
+                        {l.label}
+                      </button>
+                    ))}
+                  </div>
+                  <pre className="cz-mono" style={{ margin: 0, padding: 14, fontSize: 12.5, lineHeight: 1.7, background: "var(--cz-bg)", borderRadius: 8, border: "1px solid var(--cz-line)", overflowX: "auto", color: "var(--cz-syn-plain)" }}>
+                    {problem.solution[solLang]}
+                  </pre>
+                </div>
+
+                {compareOn && (
+                  <div>
+                    <div style={{ display: "flex", borderBottom: "1px solid var(--cz-panel-line)", marginBottom: 12, overflowX: "auto" }}>
+                      {LANGUAGES.map((l) => (
+                        <button
+                          key={l.key}
+                          onClick={() => setCompareLang(l.key)}
+                          className="cz-mono"
+                          style={{ fontSize: 12, padding: "8px 13px", background: "transparent", border: "none", cursor: "pointer", whiteSpace: "nowrap", color: compareLang === l.key ? "var(--cz-fg)" : "var(--cz-faint)", borderBottom: compareLang === l.key ? "2px solid var(--cz-accent)" : "2px solid transparent" }}
+                        >
+                          {l.label}
+                        </button>
+                      ))}
+                    </div>
+                    <pre className="cz-mono" style={{ margin: 0, padding: 14, fontSize: 12.5, lineHeight: 1.7, background: "var(--cz-bg)", borderRadius: 8, border: "1px solid var(--cz-line)", overflowX: "auto", color: "var(--cz-syn-plain)" }}>
+                      {problem.solution[compareLang]}
+                    </pre>
+                  </div>
+                )}
+              </div>
 
               <div style={{ marginTop: 18, display: "flex", flexDirection: "column", gap: 14 }}>
                 {explainLoading && <span className="cz-mono" style={{ fontSize: 12.5, color: "var(--cz-faint)" }}>Writing the explanation…</span>}
@@ -280,6 +319,20 @@ export function ProblemWorkspace({ problem }: { problem: Problem }) {
                         <div style={{ marginTop: 4, display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, color: "var(--cz-soft)" }}>
                           <div>expected<pre style={{ margin: "2px 0 0", whiteSpace: "pre-wrap", color: "var(--cz-green)" }}>{r.expected}</pre></div>
                           <div>got<pre style={{ margin: "2px 0 0", whiteSpace: "pre-wrap", color: "var(--cz-red)" }}>{r.got || "(empty)"}</pre></div>
+                        </div>
+                      )}
+                      {!r.passed && !r.hidden && r.expected !== undefined && r.got !== undefined && (() => {
+                        const hint = classifyDiff(r.expected, r.got);
+                        return hint ? (
+                          <div className="cz-mono" style={{ marginTop: 6, fontSize: 11.5, color: "var(--cz-amber)", background: "color-mix(in srgb, var(--cz-amber) 12%, transparent)", border: "1px solid color-mix(in srgb, var(--cz-amber) 30%, transparent)", borderRadius: 6, padding: "6px 9px" }}>
+                            hint — {hint}
+                          </div>
+                        ) : null;
+                      })()}
+                      {!r.passed && !r.hidden && r.stderr && (
+                        <div style={{ marginTop: 6 }}>
+                          <div style={{ color: "var(--cz-red)" }}>stderr</div>
+                          <pre style={{ margin: "2px 0 0", whiteSpace: "pre-wrap", color: "var(--cz-red)" }}>{r.stderr}</pre>
                         </div>
                       )}
                     </div>
