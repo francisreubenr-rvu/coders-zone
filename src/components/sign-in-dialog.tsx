@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { createPortal } from "react-dom";
 import { useAuth } from "@/components/auth";
 
 export function SignInDialog({ onClose }: { onClose: () => void }) {
@@ -22,7 +23,10 @@ export function SignInDialog({ onClose }: { onClose: () => void }) {
     }
   }
 
-  return (
+  // Rendered via portal: the nav's `backdropFilter` creates a new CSS containing
+  // block for `position: fixed` descendants (a Chrome/Blink quirk), which traps
+  // a same-tree fixed overlay inside the nav bar's own box instead of the viewport.
+  return createPortal(
     <div
       onClick={onClose}
       style={{
@@ -78,6 +82,7 @@ export function SignInDialog({ onClose }: { onClose: () => void }) {
           </form>
         )}
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
