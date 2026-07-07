@@ -8,6 +8,7 @@ type Solution = { code: string; explanation: string; complexity: string; languag
 
 export default function SolverPage() {
   const [problem, setProblem] = useState("");
+  const [attempt, setAttempt] = useState("");
   const [lang, setLang] = useState<Lang>("python");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -18,7 +19,7 @@ export default function SolverPage() {
   const [running, setRunning] = useState(false);
 
   async function solve() {
-    if (!problem.trim()) return;
+    if (!problem.trim() || !attempt.trim()) return;
     setLoading(true);
     setError(null);
     setSol(null);
@@ -27,7 +28,7 @@ export default function SolverPage() {
       const res = await fetch("/api/solve", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ problem, language: lang }),
+        body: JSON.stringify({ problem, attempt, language: lang }),
       });
       const data = await res.json();
       if (data.error) {
@@ -65,10 +66,10 @@ export default function SolverPage() {
     <main className="cz-container" style={{ padding: "clamp(40px,6vw,72px) clamp(16px,4vw,32px) 96px", maxWidth: 900 }}>
       <div className="cz-mono" style={{ fontSize: 11, letterSpacing: ".16em", color: "var(--cz-accent)", marginBottom: 14 }}>SOLVER</div>
       <h1 style={{ margin: "0 0 12px", fontFamily: "var(--cz-display)", fontSize: "clamp(30px,4.5vw,48px)", lineHeight: 1.1, letterSpacing: "-.02em", fontWeight: 700 }}>
-        Bring your own problem.
+        Bring your own problem. Try it first.
       </h1>
       <p style={{ margin: "0 0 28px", fontSize: 16, lineHeight: 1.6, color: "var(--cz-soft)", maxWidth: 620 }}>
-        Paste a problem from your coursework or a textbook. The solver writes a complete, runnable program in your language and explains it — then you can run it right here with your own input.
+        Paste a problem from your coursework or a textbook, then show your own attempt — even a partial or wrong one. The solver writes a complete, runnable program in your language, explains it, and tells you what your attempt got right — then you can run it right here with your own input.
       </p>
 
       <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
@@ -77,6 +78,13 @@ export default function SolverPage() {
           onChange={(e) => setProblem(e.target.value)}
           rows={5}
           placeholder="e.g. Read an integer n, then n integers, and print their average rounded to two decimals."
+          style={{ width: "100%", fontSize: 15, lineHeight: 1.6, padding: "14px 16px", borderRadius: 10, border: "1px solid var(--cz-line)", background: "var(--cz-card-bg)", color: "var(--cz-fg)", resize: "vertical", fontFamily: "var(--cz-body)" }}
+        />
+        <textarea
+          value={attempt}
+          onChange={(e) => setAttempt(e.target.value)}
+          rows={5}
+          placeholder="Your attempt (even a partial or wrong one — paste what you tried)"
           style={{ width: "100%", fontSize: 15, lineHeight: 1.6, padding: "14px 16px", borderRadius: 10, border: "1px solid var(--cz-line)", background: "var(--cz-card-bg)", color: "var(--cz-fg)", resize: "vertical", fontFamily: "var(--cz-body)" }}
         />
         <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
@@ -92,8 +100,8 @@ export default function SolverPage() {
               </button>
             ))}
           </div>
-          <button className="cz-btn" style={{ fontSize: 14 }} onClick={solve} disabled={loading || !problem.trim()}>
-            {loading ? "Solving…" : "Solve & explain →"}
+          <button className="cz-btn" style={{ fontSize: 14 }} onClick={solve} disabled={loading || !problem.trim() || !attempt.trim()}>
+            {loading ? "Solving…" : "Show your attempt & solve →"}
           </button>
         </div>
       </div>

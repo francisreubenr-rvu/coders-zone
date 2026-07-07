@@ -17,7 +17,7 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="en" data-cz-theme="light" className={`${spaceGrotesk.variable} ${ibmPlexMono.variable} ${bricolage.variable}`}>
+    <html lang="en" data-cz-theme="light" suppressHydrationWarning className={`${spaceGrotesk.variable} ${ibmPlexMono.variable} ${bricolage.variable}`}>
       <head>
         <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
       </head>

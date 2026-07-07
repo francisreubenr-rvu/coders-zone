@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server";
 import { generateText, aiConfigured, parseJsonReply } from "@/lib/ai";
 import { getProblem, type Lang } from "@/lib/problems";
+import { rateLimit, tooManyRequests } from "@/lib/rate-limit";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -8,6 +9,8 @@ export const maxDuration = 60;
 const LANG_LABEL: Record<Lang, string> = { python: "Python", c: "C", cpp: "C++", java: "Java" };
 
 export async function POST(req: NextRequest) {
+  if (!rateLimit(req, "explain", 15, 60_000)) return tooManyRequests();
+
   const { slug, language } = await req.json();
   const problem = getProblem(slug);
   if (!problem) return Response.json({ error: "Unknown problem" }, { status: 404 });
